@@ -313,12 +313,12 @@
             <div class="mb-4 flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-white">Calendar</h2>
                 <div class="flex items-center gap-2">
-                    <button id="prev5Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8592;</button>
+                    <button id="prev2Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8592;</button>
                     <div class="text-gray-400 text-sm" id="calendarRange"></div>
-                    <button id="next5Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8594;</button>
+                    <button id="next2Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8594;</button>
                 </div>
             </div>
-            <div id="calendar5DayStrip" class="grid grid-cols-5 gap-2"></div>
+            <div id="calendar2DayStrip" class="grid grid-cols-2 gap-2"></div>
         </div>
     </div>
 
@@ -414,9 +414,9 @@
                 this.calendarTab = document.getElementById('calendarTab');
                 this.calendarGridWithTime = document.getElementById('calendarGridWithTime');
                 this.calendarRange = document.getElementById('calendarRange');
-                this.prev5Days = document.getElementById('prev5Days');
-                this.next5Days = document.getElementById('next5Days');
-                this.calendar5DayStrip = document.getElementById('calendar5DayStrip');
+                this.prev2Days = document.getElementById('prev2Days');
+                this.next2Days = document.getElementById('next2Days');
+                this.calendar2DayStrip = document.getElementById('calendar2DayStrip');
                 // Subject & Task modal
                 this.subjectTaskModal = document.getElementById('subjectTaskModal');
                 this.subjectTaskForm = document.getElementById('subjectTaskForm');
@@ -461,8 +461,8 @@
                 // View toggle events
                 this.historyTab.addEventListener('click', () => this.showHistoryView());
                 this.calendarTab.addEventListener('click', () => this.showCalendarView());
-                this.prev5Days.addEventListener('click', () => this.shift5DayWindow(-5));
-                this.next5Days.addEventListener('click', () => this.shift5DayWindow(5));
+                this.prev2Days.addEventListener('click', () => this.shift2DayWindow(-2));
+                this.next2Days.addEventListener('click', () => this.shift2DayWindow(2));
             }
 
             showModal(title, message, action) {
@@ -676,40 +676,37 @@
 
             updateHistory() {
                 this.historyContainer.innerHTML = '';
-                
                 const sortedDates = Object.keys(this.sessions).sort((a, b) => {
                     return new Date(b) - new Date(a);
                 });
-                
                 sortedDates.forEach(date => {
                     const daySessions = this.sessions[date];
                     const dayTotal = daySessions.reduce((total, session) => total + session.duration, 0);
-                    
                     const dateElement = document.createElement('div');
                     dateElement.className = 'mb-6';
-                    
                     const dateHeader = document.createElement('div');
                     dateHeader.className = 'flex justify-between items-center mb-3 p-3 bg-gray-800 rounded-lg';
                     dateHeader.innerHTML = `
                         <h3 class="text-lg font-semibold text-white">${date}</h3>
                         <span class="text-green-400 font-medium">${this.formatDuration(dayTotal)}</span>
                     `;
-                    
                     const sessionsList = document.createElement('div');
                     sessionsList.className = 'space-y-2';
-                    
                     daySessions.forEach(session => {
                         const colorClass = this.getSubjectColor(session.subject);
                         const sessionElement = document.createElement('div');
                         sessionElement.className = `session-card flex justify-between items-center p-3 rounded-lg border border-gray-700 ${colorClass}`;
-                        // Use local time for start/end
+                        // Use 12-hour format for time display and add duration
                         let timeRange = '';
+                        let durationText = '';
                         if (session.startTime && session.endTime) {
                             const start = new Date(session.startTime);
                             const end = new Date(session.endTime);
-                            timeRange = `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                            timeRange = `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} – ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                            durationText = this.formatDuration(session.duration);
                         } else {
                             timeRange = session.timeString;
+                            durationText = session.timeString;
                         }
                         sessionElement.innerHTML = `
                             <div class="flex flex-col gap-1">
@@ -720,7 +717,7 @@
                                 <div class="text-xs">${session.task ? session.task : ''}</div>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="font-medium">${timeRange}</span>
+                                <span class="font-medium">${durationText} (${timeRange})</span>
                                 <button class="delete-btn bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded transition-colors duration-200" 
                                         onclick="studyTracker.deleteSession('${date}', ${session.id})">
                                     Delete
@@ -729,12 +726,10 @@
                         `;
                         sessionsList.appendChild(sessionElement);
                     });
-                    
                     dateElement.appendChild(dateHeader);
                     dateElement.appendChild(sessionsList);
                     this.historyContainer.appendChild(dateElement);
                 });
-                
                 if (sortedDates.length === 0) {
                     this.historyContainer.innerHTML = `
                         <div class="text-center text-gray-500 py-8">
@@ -780,24 +775,24 @@
                 return new Date(date.getFullYear(), date.getMonth(), date.getDate());
             }
 
-            shift5DayWindow(days) {
+            shift2DayWindow(days) {
                 this.calendarStartDate = new Date(this.calendarStartDate.getTime() + days * 24 * 60 * 60 * 1000);
                 this.renderCalendar();
             }
 
             renderCalendar() {
-                // Render a 5-day horizontal strip (no Y-axis)
+                // Render a 2-day horizontal strip
                 const start = this.calendarStartDate || this.getStartOfDay(new Date());
                 const days = [];
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < 2; i++) {
                     const d = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
                     days.push(d);
                 }
                 // Show range label
-                const rangeLabel = `${days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${days[4].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                const rangeLabel = `${days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${days[1].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
                 this.calendarRange.textContent = rangeLabel;
                 // Render columns
-                this.calendar5DayStrip.innerHTML = '';
+                this.calendar2DayStrip.innerHTML = '';
                 days.forEach(day => {
                     const col = document.createElement('div');
                     col.className = 'bg-gray-800 rounded-lg p-2 flex flex-col min-h-[200px]';
@@ -823,8 +818,8 @@
                             if (session.startTime && session.endTime) {
                                 const start = new Date(session.startTime);
                                 const end = new Date(session.endTime);
-                                const startStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                const endStr = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const startStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                const endStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                                 label = `<div class='font-bold'>${session.subject || ''}</div><div>${session.task || ''}</div><div class='text-xs mt-1'>${startStr} – ${endStr}</div>`;
                             } else {
                                 label = `<div class='font-bold'>${session.subject || ''}</div><div>${session.task || ''}</div><div class='text-xs mt-1'>${session.timeString}</div>`;
@@ -835,7 +830,7 @@
                             col.appendChild(slot);
                         });
                     }
-                    this.calendar5DayStrip.appendChild(col);
+                    this.calendar2DayStrip.appendChild(col);
                 });
             }
         }
