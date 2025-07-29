@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Time Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #e5e5e5;
+        }
+        .dark-card {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+        }
+        .dark-input {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #e5e5e5;
+        }
+        .dark-input:focus {
+            border-color: #555;
+            outline: none;
+        }
+        
+        /* SVG Sand Clock Container */
+        .sand-clock {
+            width: 120px;
+            height: 160px;
+            position: relative;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .svg-hourglass {
+            width: 80px;
+            height: 120px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        
+        .svg-hourglass svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Custom Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+        }
+        
+        .modal-icon.warning {
+            background-color: #dc2626;
+            color: white;
+        }
+        
+        .modal-icon.danger {
+            background-color: #dc2626;
+            color: white;
+        }
+        
+        /* Session Card Hover Effects */
+        .session-card {
+            transition: all 0.2s ease;
+        }
+        
+        .session-card:hover {
+            background-color: #2a2a2a;
+            transform: translateY(-1px);
+        }
+        
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .session-card:hover .delete-btn {
+            opacity: 1;
+        }
+        
+        /* Pulse animation for active timer */
+        .timer-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .modal-overlay {
+            z-index: 2000;
+        }
+        .modal-content.motivational {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            text-align: center;
+            border-radius: 18px;
+            box-shadow: 0 0 32px 8px #22c55e55, 0 2px 16px #000a;
+            border: 3px solid #22c55e;
+            animation: modalGlow 2s infinite alternate;
+            position: relative;
+            overflow: visible;
+        }
+        @keyframes modalGlow {
+            0% { box-shadow: 0 0 32px 8px #22c55e55, 0 2px 16px #000a; border-color: #22c55e; }
+            100% { box-shadow: 0 0 48px 16px #22c55e99, 0 2px 24px #000a; border-color: #a3e635; }
+        }
+        .modal-icon.motivational {
+            background: #22c55e;
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 0 16px 4px #a3e63599;
+            animation: bulbPulse 1.2s infinite alternate;
+        }
+        @keyframes bulbPulse {
+            0% { box-shadow: 0 0 16px 4px #a3e63599; transform: scale(1); }
+            100% { box-shadow: 0 0 32px 8px #fef08a; transform: scale(1.08); }
+        }
+        .motivational-quote {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 2rem;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            opacity: 0;
+            animation: quoteFadeIn 0.8s forwards;
+            animation-delay: 0.2s;
+        }
+        @keyframes quoteFadeIn {
+            to { opacity: 1; }
+        }
+        .motivational-close {
+            background: linear-gradient(90deg, #22c55e 0%, #a3e635 100%);
+            color: #222;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 2.5rem;
+            box-shadow: 0 2px 8px #22c55e44;
+            transition: background 0.2s, color 0.2s, transform 0.15s;
+        }
+        .motivational-close:hover {
+            background: linear-gradient(90deg, #a3e635 0%, #22c55e 100%);
+            color: #111;
+            transform: scale(1.06);
+        }
+        /* Confetti effect */
+        .confetti {
+            position: absolute;
+            left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
+            z-index: 10;
+        }
+        .confetti-piece {
+            position: absolute;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: confettiFall 1.2s linear forwards;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-30px) scale(1); opacity: 1; }
+            100% { transform: translateY(180px) scale(0.7); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">Study Tracker</h1>
+        </div>
+
+        <!-- View Toggle Buttons -->
+        <div class="flex justify-center gap-4 mb-6">
+            <button id="historyTab" class="bg-blue-700 text-white font-bold py-2 px-6 rounded-lg focus:outline-none">History</button>
+            <button id="calendarTab" class="bg-blue-900 text-white font-bold py-2 px-6 rounded-lg focus:outline-none">Calendar</button>
+        </div>
+
+        <!-- Current Day Summary -->
+        <div class="dark-card rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-white mb-2">Today</h2>
+            <div class="text-2xl font-bold text-white" id="todayTotal">0 hours 0 minutes</div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="dark-card rounded-lg p-6 mb-6">
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="startBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200">
+                    Start Study
+                </button>
+                <button id="stopBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200" disabled>
+                    Stop Study
+                </button>
+                <button id="resetBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200">
+                    Reset All
+                </button>
+            </div>
+        </div>
+
+        <!-- Current Session Timer -->
+        <div id="timerDisplay" class="dark-card rounded-lg p-6 mb-6 hidden">
+            <div class="flex items-center justify-center gap-6 mb-6">
+                <div class="sand-clock">
+                    <div class="svg-hourglass">
+                        <svg width="30px" height="30px" viewBox="0 0 14 18">
+                            <defs>
+                            </defs>
+                            <g id="sandclock" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+                                <path d="M13.0986667,16.465 L12.7226667,16.465 C12.6796667,16.031 12.5996667,15.6073333 12.4886667,15.1963333 C12.084,13.6953333 11.269,12.3646667 10.352,11.3396667 C9.52833333,10.4183333 8.623,9.74333333 7.859,9.41433333 C7.859,9.41433333 7.56766667,9.20133333 7.56766667,8.97866667 C7.56766667,8.75633333 7.859,8.54533333 7.859,8.54533333 C9.687,7.74033333 12.3786667,4.93333333 12.7223333,1.50133333 L13.0986667,1.50133333 C13.5006667,1.50133333 13.8266667,1.17533333 13.8266667,0.773666667 C13.8266667,0.371666667 13.5006667,0.0456666667 13.0986667,0.0456666667 L0.776,0.0456666667 C0.374,0.0456666667 0.048,0.371666667 0.048,0.773666667 C0.048,1.17533333 0.374,1.50133333 0.776,1.50133333 L1.152,1.50133333 C1.49233333,4.93666667 4.15866667,7.745 6.00533333,8.54733333 C6.00533333,8.54733333 6.31133333,8.737 6.31133333,8.97866667 C6.31133333,9.22033333 6.01566667,9.421 6.01566667,9.421 C5.26233333,9.75266667 4.36333333,10.4246667 3.54166667,11.3396667 C2.62066667,12.3646667 1.79833333,13.6953333 1.389,15.1963333 C1.277,15.6073333 1.196,16.031 1.15266667,16.465 L0.776,16.465 C0.374,16.465 0.048,16.791 0.048,17.1926667 C0.048,17.5946667 0.374,17.9206667 0.776,17.9206667 L13.0986667,17.9206667 C13.5006667,17.9206667 13.8266667,17.5946667 13.8266667,17.1926667 C13.8263333,16.791 13.5006667,16.465 13.0986667,16.465 L13.0986667,16.465 Z M2.47033333,16.4923333 L1.892,16.4923333 C1.92166667,16.023 1.97666667,15.5933333 2.053,15.1963333 C2.273,14.054 2.67366667,13.1896667 3.18666667,12.4753333 C3.47733333,12.0703333 3.80133333,11.6873333 4.14033333,11.3396667 C4.80733333,10.6553333 5.88879069,10.1021427 6.19133333,9.82066667 C6.49387598,9.53919067 6.65833333,9.39266667 6.65833333,8.997 C6.65833333,8.60133333 6.45611593,8.47363293 6.03570577,8.2112428 C5.61529562,7.94885266 4.034,6.69966667 3.17433333,5.49566667 C2.488,4.53433333 2.00533333,3.328 1.891,1.50166667 L11.982,1.50166667 C11.8663333,3.322 11.378,4.52866667 10.687,5.49133333 C9.82466667,6.69266667 8.52740499,7.75976575 7.89733907,8.12268078 C7.26727316,8.48559582 7.22133333,8.61 7.22133333,8.98333333 C7.22133333,9.35666667 7.41784912,9.52330154 7.89733907,9.82066691 C8.37682903,10.1180323 9.08133333,10.6486667 9.75266667,11.3393333 C10.0873333,11.6833333 10.4066667,12.0626667 10.6933333,12.4633333 C11.2053333,13.179 11.6043333,14.0463333 11.823,15.196 C11.8983333,15.5926667 11.9523333,16.0223333 11.9816667,16.492 L11.4053333,16.492 C4.14033338,16.4920002 5.86059567,16.4920002 2.47033333,16.4923333 Z" id="Shape" fill="#8b5a2b"></path>
+                                
+                                <g id="sand">
+                                    <path d="M7.00695799,10.3484497 C7.00695799,10.3484497 6.27532958,10.4129639 7.00695799,10.3484497 C7.73858641,10.2839355 7.00695799,10.3484497 7.00695799,10.3484497 C7.00695799,10.3484497 7.78173827,9.99768063 7.09265135,10.548584 C6.40356444,11.0994873 7.09265137,10.548584 7.09265137,10.548584 L7.09265137,10.5493774 L11.4924319,16.4705197 L2.52148436,16.4705197 L6.87243652,10.5493774 L6.80957031,10.548584 C6.80957031,10.548584 7.1925659,10.737854 6.87243651,10.548584 C6.37234656,10.2529159 7.00695799,10.3484497 7.00695799,10.3484497 Z;" id="Path-26" fill="#C62626" sketch:type="MSShapeGroup">
+                                        <animate 
+                                            attributeName="d" 
+                                            dur="60s" 
+                                            repeatCount="indefinite"
+                                            keyTimes="0; .01; .2; .4; .7; .8; .99; 1"
+                                            values="M2.33630371,3.07006836 C2.33630371,3.07006836 5.43261719,3.33813477 6.80957031,3.33813477 C8.18652344,3.33813477 11.3754883,3.07006836 11.3754883,3.07006836 C11.3754883,3.07006836 10.8122559,4.96514893 9.58630371,6.16516113 C8.36035156,7.36517334 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,8.35028076 L7.09265137,8.46459961 L6.87243652,8.46459961 L6.87243652,8.35028076 L6.80957031,8.2623291 C6.80957031,8.2623291 4.9704053,7.27703707 3.96130371,5.96057129 C2.5045166,4.06005859 2.33630371,3.07006836 2.33630371,3.07006836 Z;
+                                            
+                                            M2.375,3.11462402 C2.375,3.11462402 5.71569824,3.44421387 7.09265137,3.44421387 C8.46960449,3.44421387 11.4150391,3.31262207 11.4150391,3.31262207 C11.4150391,3.31262207 10.8122559,4.96514893 9.58630371,6.16516113 C8.36035156,7.36517334 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,15.5496216 L7.09265137,16.47052 L6.87243652,16.47052 L6.87243652,15.5496216 L6.80957031,8.2623291 C6.80957031,8.2623291 4.9704053,7.27703707 3.96130371,5.96057129 C2.5045166,4.06005859 2.375,3.11462402 2.375,3.11462402 Z;
+                                            
+                                            M2.49230957,3.31262207 C2.49230957,3.31262207 5.71569824,3.66851807 7.09265137,3.66851807 C8.46960449,3.66851807 11.3153076,3.53222656 11.3153076,3.53222656 C11.3153076,3.53222656 10.8122559,4.96514893 9.58630371,6.16516113 C8.36035156,7.36517334 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,15.149231 L7.9152832,16.47052 L6.10144043,16.47052 L6.87243652,15.149231 L6.80957031,8.2623291 C6.80957031,8.2623291 4.9704053,7.27703707 3.96130371,5.96057129 C2.5045166,4.06005859 2.49230957,3.31262207 2.49230957,3.31262207 Z;
+                                            
+                                            M2.98474121,4.37164307 C2.98474121,4.37164307 5.49548338,4.7074585 6.87243651,4.7074585 C8.24938963,4.7074585 10.8119509,4.64428711 10.8119509,4.64428711 C10.8119509,4.64428711 10.8122559,4.96514893 9.58630371,6.16516113 C8.36035156,7.36517334 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,12.5493774 L9.36248779,16.47052 L4.5581665,16.47052 L6.87243652,12.5493774 L6.80957031,8.2623291 C6.80957031,8.2623291 4.9704053,7.27703707 3.96130371,5.96057129 C2.5045166,4.06005859 2.98474121,4.37164307 2.98474121,4.37164307 Z;
+                                            
+                                            M4.49743651,6.36560059 C4.49743651,6.36560059 5.63000487,6.72412109 7.00695799,6.72412109 C8.38391112,6.72412109 9.56188963,6.36560059 9.56188963,6.36560059 C9.56188963,6.36560059 9.48870848,6.54571533 8.79962157,7.09661865 C8.11053465,7.64752197 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,10.5493774 L11.4924319,16.4705197 L2.52148436,16.4705197 L6.87243652,10.5493774 L6.80957031,8.2623291 C6.80957031,8.2623291 6.01727463,8.16043491 4.82800292,6.81622307 C4.42932128,6.36560059 4.49743651,6.36560059 4.49743651,6.36560059 Z;
+                                            
+                                            M5.87017821,7.51904297 C5.87017821,7.51904297 6.14080809,7.70904542 6.87243651,7.64453126 C7.60406493,7.5800171 7.47180174,7.51904297 7.47180174,7.51904297 C7.47180174,7.51904297 8.51336669,7.23876953 7.82427977,7.78967285 C7.13519286,8.34057617 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,10.5493774 L11.4924319,16.4705197 L2.52148436,16.4705197 L6.87243652,10.5493774 L6.80957031,8.2623291 C6.80957031,8.2623291 6.66632079,8.14239502 6.34619139,7.953125 C5.84610144,7.65745695 5.87017821,7.51904297 5.87017821,7.51904297 Z;
+                                            
+                                            M7.00695799,8.06219482 C7.00695799,8.06219482 6.27532958,8.12670898 7.00695799,8.06219482 C7.73858641,7.99768066 7.00695799,8.06219482 7.00695799,8.06219482 C7.00695799,8.06219482 7.78173827,7.71142576 7.09265135,8.26232908 C6.40356444,8.8132324 7.09265137,8.2623291 7.09265137,8.2623291 L7.09265137,10.5493774 L11.4924319,16.4705197 L2.52148436,16.4705197 L6.87243652,10.5493774 L6.80957031,8.2623291 C6.80957031,8.2623291 7.1925659,8.45159912 6.87243651,8.2623291 C6.37234656,7.96666105 7.00695799,8.06219482 7.00695799,8.06219482 Z;
+                                            
+                                            M7.00695799,10.3484497 C7.00695799,10.3484497 6.27532958,10.4129639 7.00695799,10.3484497 C7.73858641,10.2839355 7.00695799,10.3484497 7.00695799,10.3484497 C7.00695799,10.3484497 7.78173827,9.99768063 7.09265135,10.548584 C6.40356444,11.0994873 7.09265137,10.548584 7.09265137,10.548584 L7.09265137,10.5493774 L11.4924319,16.4705197 L2.52148436,16.4705197 L6.87243652,10.5493774 L6.80957031,10.548584 C6.80957031,10.548584 7.1925659,10.737854 6.87243651,10.548584 C6.37234656,10.2529159 7.00695799,10.3484497 7.00695799,10.3484497 Z;"
+                                        />
+                                        
+                                        <animate 
+                                            attributeName="fill" 
+                                            dur="60s" 
+                                            repeatCount="indefinite"
+                                            keyTimes="0; .5; 1"
+                                            values="#94CE00; #FADB00; #C62626;"
+                                        />
+                                    </path>
+                                </g>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+                <h3 class="text-xl font-semibold text-white">Current Session</h3>
+            </div>
+            <div class="text-4xl font-mono text-white text-center timer-pulse" id="currentTimer">00:00:00</div>
+        </div>
+
+        <!-- Study History -->
+        <div id="historyView" class="dark-card rounded-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-semibold text-white">History</h2>
+                <div class="text-gray-400 text-sm" id="totalSessions">0 sessions</div>
+            </div>
+            <div id="historyContainer" class="space-y-4">
+                <!-- History items will be populated here -->
+            </div>
+        </div>
+
+        <!-- Calendar View (hidden by default) -->
+        <div id="calendarView" class="dark-card rounded-lg p-6 hidden">
+            <div class="mb-4 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-white">Calendar</h2>
+                <div class="flex items-center gap-2">
+                    <button id="prev5Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8592;</button>
+                    <div class="text-gray-400 text-sm" id="calendarRange"></div>
+                    <button id="next5Days" class="bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center">&#8594;</button>
+                </div>
+            </div>
+            <div id="calendar5DayStrip" class="grid grid-cols-5 gap-2"></div>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon warning">⚠️</div>
+            <h3 class="text-xl font-bold text-white text-center mb-4" id="modalTitle">Confirm Action</h3>
+            <p class="text-gray-300 text-center mb-6" id="modalMessage">Are you sure you want to proceed?</p>
+            <div class="flex gap-3 justify-center">
+                <button id="modalCancel" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="modalConfirm" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Motivational Quote Modal -->
+    <div id="quoteModal" class="modal-overlay">
+      <div class="modal-content motivational">
+        <div class="confetti" id="confetti"></div>
+        <div class="modal-icon motivational">💡</div>
+        <h2 class="text-2xl font-bold text-white mb-4">Stay Motivated!</h2>
+        <p id="quoteText" class="motivational-quote"></p>
+        <button id="closeQuoteModal" class="motivational-close">Close</button>
+      </div>
+    </div>
+
+    <!-- Subject & Task Modal -->
+    <div id="subjectTaskModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 class="text-xl font-bold text-white text-center mb-4">Start Study Session</h3>
+        <form id="subjectTaskForm" class="space-y-4">
+          <div>
+            <label for="subjectSelect" class="block text-gray-300 mb-1">Subject</label>
+            <select id="subjectSelect" class="dark-input w-full rounded p-2">
+              <option value="Accountancy">Accountancy</option>
+              <option value="Law">Law</option>
+              <option value="DT">DT</option>
+              <option value="GST">GST</option>
+            </select>
+          </div>
+          <div>
+            <label for="taskDescription" class="block text-gray-300 mb-1">Task Description</label>
+            <textarea id="taskDescription" class="dark-input w-full rounded p-2" rows="3" placeholder="Describe your task..."></textarea>
+          </div>
+          <div class="flex justify-center gap-3">
+            <button type="button" id="cancelSubjectTask" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">Cancel</button>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">Start</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+        class StudyTracker {
+            constructor() {
+                this.isTracking = false;
+                this.startTime = null;
+                this.endTime = null; // <-- Add endTime property
+                this.timerInterval = null;
+                this.sessions = this.loadSessions();
+                this.pendingAction = null;
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.checkPersistentTimer();
+                this.updateDisplay();
+            }
+
+            initializeElements() {
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.timerDisplay = document.getElementById('timerDisplay');
+                this.currentTimer = document.getElementById('currentTimer');
+                this.todayTotal = document.getElementById('todayTotal');
+                this.historyContainer = document.getElementById('historyContainer');
+                this.totalSessions = document.getElementById('totalSessions');
+                // Modal elements
+                this.modal = document.getElementById('customModal');
+                this.modalTitle = document.getElementById('modalTitle');
+                this.modalMessage = document.getElementById('modalMessage');
+                this.modalConfirm = document.getElementById('modalConfirm');
+                this.modalCancel = document.getElementById('modalCancel');
+                // Calendar elements
+                this.historyView = document.getElementById('historyView');
+                this.calendarView = document.getElementById('calendarView');
+                this.historyTab = document.getElementById('historyTab');
+                this.calendarTab = document.getElementById('calendarTab');
+                this.calendarGridWithTime = document.getElementById('calendarGridWithTime');
+                this.calendarRange = document.getElementById('calendarRange');
+                this.prev5Days = document.getElementById('prev5Days');
+                this.next5Days = document.getElementById('next5Days');
+                this.calendar5DayStrip = document.getElementById('calendar5DayStrip');
+                // Subject & Task modal
+                this.subjectTaskModal = document.getElementById('subjectTaskModal');
+                this.subjectTaskForm = document.getElementById('subjectTaskForm');
+                this.subjectSelect = document.getElementById('subjectSelect');
+                this.taskDescription = document.getElementById('taskDescription');
+                this.cancelSubjectTask = document.getElementById('cancelSubjectTask');
+            }
+
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.showSubjectTaskModal());
+                this.stopBtn.addEventListener('click', () => this.stopStudy());
+                this.resetBtn.addEventListener('click', () => this.showResetConfirmation());
+                
+                // Modal events
+                this.modalConfirm.addEventListener('click', () => this.executePendingAction());
+                this.modalCancel.addEventListener('click', () => this.hideModal());
+                this.modal.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.hideModal();
+                    }
+                });
+                
+                // Subject & Task modal events
+                this.subjectTaskForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.hideSubjectTaskModal();
+                    this._startStudyWithSubjectTask();
+                });
+                this.cancelSubjectTask.addEventListener('click', () => this.hideSubjectTaskModal());
+                this.subjectTaskModal.addEventListener('click', (e) => {
+                    if (e.target === this.subjectTaskModal) {
+                        this.hideSubjectTaskModal();
+                    }
+                });
+                
+                // Handle page visibility changes
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && this.isTracking) {
+                        this.updateCurrentTimer();
+                    }
+                });
+                // View toggle events
+                this.historyTab.addEventListener('click', () => this.showHistoryView());
+                this.calendarTab.addEventListener('click', () => this.showCalendarView());
+                this.prev5Days.addEventListener('click', () => this.shift5DayWindow(-5));
+                this.next5Days.addEventListener('click', () => this.shift5DayWindow(5));
+            }
+
+            showModal(title, message, action) {
+                this.modalTitle.textContent = title;
+                this.modalMessage.textContent = message;
+                this.pendingAction = action;
+                this.modal.classList.add('show');
+            }
+
+            hideModal() {
+                this.modal.classList.remove('show');
+                this.pendingAction = null;
+            }
+
+            executePendingAction() {
+                if (this.pendingAction) {
+                    this.pendingAction();
+                }
+                this.hideModal();
+            }
+
+            checkPersistentTimer() {
+                const savedStartTime = localStorage.getItem('studyStartTime');
+                if (savedStartTime) {
+                    this.startTime = new Date(parseInt(savedStartTime));
+                    this.isTracking = true;
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.timerDisplay.classList.remove('hidden');
+                    
+                    this.timerInterval = setInterval(() => {
+                        this.updateCurrentTimer();
+                    }, 1000);
+                }
+            }
+
+            showSubjectTaskModal() {
+                this.subjectTaskModal.classList.add('show');
+                this.subjectSelect.value = 'Accountancy';
+                this.taskDescription.value = '';
+            }
+            hideSubjectTaskModal() {
+                this.subjectTaskModal.classList.remove('show');
+            }
+            _startStudyWithSubjectTask() {
+                this.selectedSubject = this.subjectSelect.value;
+                this.selectedTask = this.taskDescription.value;
+                this._showMotivationalQuoteAndStart();
+            }
+            _showMotivationalQuoteAndStart() {
+                showMotivationalQuote(() => {
+                    this._realStartStudy();
+                });
+            }
+            _realStartStudy() {
+                if (this.isTracking) return;
+                this.isTracking = true;
+                this.startTime = new Date();
+                this.endTime = null;
+                localStorage.setItem('studyStartTime', this.startTime.getTime().toString());
+                this.startBtn.disabled = true;
+                this.stopBtn.disabled = false;
+                this.timerDisplay.classList.remove('hidden');
+                this.timerInterval = setInterval(() => {
+                    this.updateCurrentTimer();
+                }, 1000);
+            }
+            // Override startStudy to use modal
+            startStudy() {
+                this.showSubjectTaskModal();
+            }
+            // Save subject and task in session
+            stopStudy() {
+                if (!this.isTracking) return;
+                this.isTracking = false;
+                this.endTime = new Date();
+                const endTime = this.endTime;
+                const duration = endTime - this.startTime;
+                this.saveSession(duration, this.startTime, endTime, this.selectedSubject, this.selectedTask);
+                this.resetTimer();
+                this.updateDisplay();
+            }
+
+            resetTimer() {
+                this.isTracking = false;
+                this.startTime = null;
+                this.endTime = null; // <-- Reset endTime
+                localStorage.removeItem('studyStartTime');
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.timerDisplay.classList.add('hidden');
+                
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+
+            updateCurrentTimer() {
+                if (!this.startTime) return;
+                
+                const now = new Date();
+                const elapsed = now - this.startTime;
+                const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+                
+                this.currentTimer.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            saveSession(duration, startTime, endTime, subject, task) {
+                // Use the local date of the session's start time as the key
+                const date = startTime ? new Date(startTime) : new Date();
+                const dateKey = this.formatDate(date);
+                const session = {
+                    duration: duration,
+                    timestamp: date.getTime(),
+                    timeString: this.formatDuration(duration),
+                    id: Date.now() + Math.random(),
+                    startTime: startTime ? startTime.getTime() : null,
+                    endTime: endTime ? endTime.getTime() : null,
+                    subject: subject || this.selectedSubject || '',
+                    task: task || this.selectedTask || ''
+                };
+                if (!this.sessions[dateKey]) {
+                    this.sessions[dateKey] = [];
+                }
+                this.sessions[dateKey].push(session);
+                this.saveSessions();
+            }
+
+            deleteSession(dateKey, sessionId) {
+                this.showModal(
+                    'Delete Study Session',
+                    'Are you sure you want to delete this study session? This action cannot be undone.',
+                    () => {
+                        if (this.sessions[dateKey]) {
+                            this.sessions[dateKey] = this.sessions[dateKey].filter(session => session.id !== sessionId);
+                            
+                            // Remove empty date entries
+                            if (this.sessions[dateKey].length === 0) {
+                                delete this.sessions[dateKey];
+                            }
+                            
+                            this.saveSessions();
+                            this.updateDisplay();
+                        }
+                    }
+                );
+            }
+
+            showResetConfirmation() {
+                this.showModal(
+                    'Reset All Data',
+                    'Are you sure you want to delete all study data? This action cannot be undone.',
+                    () => {
+                        this.sessions = {};
+                        this.saveSessions();
+                        this.updateDisplay();
+                        this.resetTimer();
+                    }
+                );
+            }
+
+            formatDate(date) {
+                const options = { day: 'numeric', month: 'long', year: 'numeric' };
+                return date.toLocaleDateString('en-US', options);
+            }
+
+            formatDuration(milliseconds) {
+                const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+                const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (hours > 0) {
+                    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+                } else {
+                    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+                }
+            }
+
+            getSubjectColor(subject) {
+                switch ((subject || '').toLowerCase()) {
+                    case 'accountancy': return 'bg-blue-600';
+                    case 'law': return 'bg-red-600';
+                    case 'dt': return 'bg-yellow-400 text-black';
+                    case 'gst': return 'bg-green-600';
+                    default: return 'bg-gray-600';
+                }
+            }
+
+            getTodayTotal() {
+                const today = this.formatDate(new Date());
+                if (!this.sessions[today]) return 0;
+                
+                return this.sessions[today].reduce((total, session) => total + session.duration, 0);
+            }
+
+            updateDisplay() {
+                // Update today's total
+                const todayTotal = this.getTodayTotal();
+                this.todayTotal.textContent = this.formatDuration(todayTotal);
+                
+                // Update history
+                this.updateHistory();
+                
+                // Update total sessions count
+                const totalSessions = Object.values(this.sessions).flat().length;
+                this.totalSessions.textContent = `${totalSessions} sessions`;
+            }
+
+            updateHistory() {
+                this.historyContainer.innerHTML = '';
+                
+                const sortedDates = Object.keys(this.sessions).sort((a, b) => {
+                    return new Date(b) - new Date(a);
+                });
+                
+                sortedDates.forEach(date => {
+                    const daySessions = this.sessions[date];
+                    const dayTotal = daySessions.reduce((total, session) => total + session.duration, 0);
+                    
+                    const dateElement = document.createElement('div');
+                    dateElement.className = 'mb-6';
+                    
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = 'flex justify-between items-center mb-3 p-3 bg-gray-800 rounded-lg';
+                    dateHeader.innerHTML = `
+                        <h3 class="text-lg font-semibold text-white">${date}</h3>
+                        <span class="text-green-400 font-medium">${this.formatDuration(dayTotal)}</span>
+                    `;
+                    
+                    const sessionsList = document.createElement('div');
+                    sessionsList.className = 'space-y-2';
+                    
+                    daySessions.forEach(session => {
+                        const colorClass = this.getSubjectColor(session.subject);
+                        const sessionElement = document.createElement('div');
+                        sessionElement.className = `session-card flex justify-between items-center p-3 rounded-lg border border-gray-700 ${colorClass}`;
+                        // Use local time for start/end
+                        let timeRange = '';
+                        if (session.startTime && session.endTime) {
+                            const start = new Date(session.startTime);
+                            const end = new Date(session.endTime);
+                            timeRange = `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                        } else {
+                            timeRange = session.timeString;
+                        }
+                        sessionElement.innerHTML = `
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 bg-white rounded-full"></div>
+                                    <span class="font-bold">${session.subject || 'Study session'}</span>
+                                </div>
+                                <div class="text-xs">${session.task ? session.task : ''}</div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="font-medium">${timeRange}</span>
+                                <button class="delete-btn bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded transition-colors duration-200" 
+                                        onclick="studyTracker.deleteSession('${date}', ${session.id})">
+                                    Delete
+                                </button>
+                            </div>
+                        `;
+                        sessionsList.appendChild(sessionElement);
+                    });
+                    
+                    dateElement.appendChild(dateHeader);
+                    dateElement.appendChild(sessionsList);
+                    this.historyContainer.appendChild(dateElement);
+                });
+                
+                if (sortedDates.length === 0) {
+                    this.historyContainer.innerHTML = `
+                        <div class="text-center text-gray-500 py-8">
+                            <div class="text-4xl mb-2">📚</div>
+                            <p>No study sessions yet.</p>
+                        </div>
+                    `;
+                }
+            }
+
+            loadSessions() {
+                const saved = localStorage.getItem('studySessions');
+                return saved ? JSON.parse(saved) : {};
+            }
+
+            saveSessions() {
+                localStorage.setItem('studySessions', JSON.stringify(this.sessions));
+            }
+
+            showHistoryView() {
+                this.historyView.classList.remove('hidden');
+                this.calendarView.classList.add('hidden');
+                this.historyTab.classList.add('bg-blue-700');
+                this.historyTab.classList.remove('bg-blue-900');
+                this.calendarTab.classList.remove('bg-blue-700');
+                this.calendarTab.classList.add('bg-blue-900');
+            }
+
+            showCalendarView() {
+                this.historyView.classList.add('hidden');
+                this.calendarView.classList.remove('hidden');
+                this.historyTab.classList.remove('bg-blue-700');
+                this.historyTab.classList.add('bg-blue-900');
+                this.calendarTab.classList.add('bg-blue-700');
+                this.calendarTab.classList.remove('bg-blue-900');
+                if (!this.calendarStartDate) {
+                    this.calendarStartDate = this.getStartOfDay(new Date());
+                }
+                this.renderCalendar();
+            }
+
+            getStartOfDay(date) {
+                return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            }
+
+            shift5DayWindow(days) {
+                this.calendarStartDate = new Date(this.calendarStartDate.getTime() + days * 24 * 60 * 60 * 1000);
+                this.renderCalendar();
+            }
+
+            renderCalendar() {
+                // Render a 5-day horizontal strip (no Y-axis)
+                const start = this.calendarStartDate || this.getStartOfDay(new Date());
+                const days = [];
+                for (let i = 0; i < 5; i++) {
+                    const d = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
+                    days.push(d);
+                }
+                // Show range label
+                const rangeLabel = `${days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${days[4].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                this.calendarRange.textContent = rangeLabel;
+                // Render columns
+                this.calendar5DayStrip.innerHTML = '';
+                days.forEach(day => {
+                    const col = document.createElement('div');
+                    col.className = 'bg-gray-800 rounded-lg p-2 flex flex-col min-h-[200px]';
+                    // Day label
+                    const dayLabel = document.createElement('div');
+                    dayLabel.className = 'text-xs text-gray-400 mb-2 text-center';
+                    dayLabel.textContent = day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                    col.appendChild(dayLabel);
+                    // Sessions for this day
+                    const dateKey = this.formatDate(day);
+                    const sessions = this.sessions[dateKey] || [];
+                    if (sessions.length === 0) {
+                        const empty = document.createElement('div');
+                        empty.className = 'text-gray-600 text-xs text-center mt-6';
+                        empty.textContent = 'No sessions';
+                        col.appendChild(empty);
+                    } else {
+                        // Sort by startTime
+                        sessions.sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+                        sessions.forEach(session => {
+                            const colorClass = this.getSubjectColor(session.subject);
+                            let label = '';
+                            if (session.startTime && session.endTime) {
+                                const start = new Date(session.startTime);
+                                const end = new Date(session.endTime);
+                                const startStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const endStr = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                label = `<div class='font-bold'>${session.subject || ''}</div><div>${session.task || ''}</div><div class='text-xs mt-1'>${startStr} – ${endStr}</div>`;
+                            } else {
+                                label = `<div class='font-bold'>${session.subject || ''}</div><div>${session.task || ''}</div><div class='text-xs mt-1'>${session.timeString}</div>`;
+                            }
+                            const slot = document.createElement('div');
+                            slot.className = `${colorClass} text-xs rounded px-1 py-1 mb-2 truncate text-center shadow-md`;
+                            slot.innerHTML = label;
+                            col.appendChild(slot);
+                        });
+                    }
+                    this.calendar5DayStrip.appendChild(col);
+                });
+            }
+        }
+
+        // Initialize the app when the page loads
+        let studyTracker;
+        document.addEventListener('DOMContentLoaded', () => {
+            studyTracker = new StudyTracker();
+        });
+
+        const motivationalQuotes = [
+          "Success is the sum of small efforts, repeated day in and day out.",
+          "Don’t watch the clock; do what it does. Keep going.",
+          "The secret of getting ahead is getting started.",
+          "It always seems impossible until it’s done.",
+          "Push yourself, because no one else is going to do it for you.",
+          "Great things never come from comfort zones.",
+          "Dream it. Wish it. Do it.",
+          "Success doesn’t just find you. You have to go out and get it.",
+          "The harder you work for something, the greater you’ll feel when you achieve it.",
+          "Don’t stop when you’re tired. Stop when you’re done.",
+          // ... (add 90+ more unique motivational quotes for variety)
+        ];
+        let lastQuoteIndex = -1;
+        function showMotivationalQuote(callback) {
+          let idx;
+          do {
+            idx = Math.floor(Math.random() * motivationalQuotes.length);
+          } while (idx === lastQuoteIndex);
+          lastQuoteIndex = idx;
+          const quoteText = document.getElementById('quoteText');
+          quoteText.textContent = motivationalQuotes[idx];
+          quoteText.style.opacity = 0;
+          setTimeout(() => { quoteText.style.opacity = 1; }, 100);
+          document.getElementById('quoteModal').classList.add('show');
+          // Confetti effect
+          const confetti = document.getElementById('confetti');
+          confetti.innerHTML = '';
+          for (let i = 0; i < 24; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = Math.random() * 100 + '%';
+            piece.style.background = `hsl(${Math.random()*360},90%,60%)`;
+            piece.style.animationDelay = (Math.random()*0.5) + 's';
+            confetti.appendChild(piece);
+          }
+          setTimeout(() => {
+            confetti.innerHTML = '';
+            document.getElementById('quoteModal').classList.remove('show');
+            if (typeof callback === 'function') callback();
+          }, 2000);
+        }
+        document.getElementById('closeQuoteModal').onclick = function() {
+          document.getElementById('quoteModal').classList.remove('show');
+        };
+        // Show on start/stop
+        const origStartStudy = StudyTracker.prototype.startStudy;
+        StudyTracker.prototype.startStudy = function() {
+          showMotivationalQuote();
+          setTimeout(() => origStartStudy.call(this), 500);
+        };
+        const origStopStudy = StudyTracker.prototype.stopStudy;
+        StudyTracker.prototype.stopStudy = function() {
+          showMotivationalQuote();
+          setTimeout(() => origStopStudy.call(this), 500);
+        };
+    </script>
+</body>
+</html> 
